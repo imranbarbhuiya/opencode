@@ -1,6 +1,6 @@
 import { test, expect, describe } from "bun:test"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
-import { extractResponseText, formatPromptTooLargeError } from "../../src/cli/cmd/github"
+import { extractResponseText, formatPromptTooLargeError, parseReviewComments } from "../../src/cli/cmd/github"
 import type { MessageV2 } from "../../src/session/message-v2"
 import { SessionID, MessageID, PartID } from "../../src/session/schema"
 
@@ -195,5 +195,52 @@ describe("formatPromptTooLargeError", () => {
     expect(result).toInclude("img1.png (3 KB)")
     expect(result).toInclude("img2.jpg (6 KB)")
     expect(result).toInclude("img3.gif (9 KB)")
+  })
+})
+
+describe("parseReviewComments", () => {
+  test("returns the full text as a summary when there are no findings", () => {
+    expect(parseReviewComments("Looks good.")).toEqual({
+      summary: "Looks good.",
+      comments: [],
+    })
+  })
+
+  test("splits summary and inline findings", () => {
+    const parsed = parseReviewComments(`Two issues.
+
+**High** \`src/a.ts:10\`
+
+Null deref.
+
+\`\`\`suggestion
+value?.ok
+\`\`\`
+
+**Low** \`src/b.ts:3\`
+
+Unused import.`)
+
+    expect(parsed.summary).toBe("Two issues.")
+    expect(parsed.comments).toEqual([
+      {
+        path: "src/a.ts",
+        line: 10,
+        body: `**High** \`src/a.ts:10\`
+
+Null deref.
+
+\`\`\`suggestion
+value?.ok
+\`\`\``,
+      },
+      {
+        path: "src/b.ts",
+        line: 3,
+        body: `**Low** \`src/b.ts:3\`
+
+Unused import.`,
+      },
+    ])
   })
 })

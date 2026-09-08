@@ -21,6 +21,41 @@ export function extractResponseText(parts: SessionV1.Part[]): string | null {
  * Formats a PROMPT_TOO_LARGE error message with details about files in the prompt.
  * Content is base64 encoded, so we calculate original size by multiplying by 0.75.
  */
+export type ReviewComment = {
+  path: string
+  line: number
+  body: string
+}
+
+export type ParsedReview = {
+  summary: string
+  comments: ReviewComment[]
+}
+
+const REVIEW_COMMENT_RE = /^\*\*(High|Medium|Low)\*\* `([^`\n]+):(\d+)`\s*$/gm
+
+export function parseReviewComments(text: string): ParsedReview {
+  const matches = [...text.matchAll(REVIEW_COMMENT_RE)]
+  if (matches.length === 0) return { summary: text.trim(), comments: [] }
+
+  const comments: ReviewComment[] = []
+  for (let i = 0; i < matches.length; i++) {
+    const match = matches[i]
+    const start = match.index ?? 0
+    const end = i + 1 < matches.length ? (matches[i + 1].index ?? text.length) : text.length
+    comments.push({
+      path: match[2],
+      line: Number(match[3]),
+      body: text.slice(start, end).trim(),
+    })
+  }
+
+  return {
+    summary: text.slice(0, matches[0].index ?? 0).trim(),
+    comments,
+  }
+}
+
 export function formatPromptTooLargeError(files: { filename: string; content: string }[]): string {
   const fileDetails =
     files.length > 0
