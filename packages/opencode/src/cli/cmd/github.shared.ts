@@ -34,6 +34,80 @@ export type ParsedReview = {
 
 const REVIEW_COMMENT_RE = /^\*\*(High|Medium|Low)\*\* `([^`\n]+):(\d+)`\s*$/gm
 
+export type ReviewThread = {
+  id: string
+  isResolved: boolean
+  isOutdated: boolean
+  comments: Array<{
+    databaseId: number
+    body: string
+    path: string
+    line: number | null
+    originalLine: number | null
+    author: string
+  }>
+}
+
+export type ReviewActions = ParsedReview & {
+  resolve: string[]
+  update: Array<{ databaseId: number; body: string }>
+}
+
+function asReviewComment(value: unknown): ReviewComment | undefined {
+  if (!value || typeof value !== "object") return
+  const comment = value as Partial<ReviewComment>
+  if (typeof comment.path !== "string" || typeof comment.body !== "string") return
+  const line = Number(comment.line)
+  if (!Number.isInteger(line) || line < 1) return
+  return { path: comment.path, line, body: comment.body }
+}
+
+function asReviewUpdate(value: unknown): { databaseId: number; body: string } | undefined {
+  if (!value || typeof value !== "object") return
+  const update = value as { databaseId?: unknown; body?: unknown }
+  const databaseId = Number(update.databaseId)
+  if (!Number.isInteger(databaseId) || databaseId < 1 || typeof update.body !== "string") return
+  return { databaseId, body: update.body }
+}
+
+export function parseReviewActions(text: string): ReviewActions {
+  const fence = text.match(/```opencode-review\s*([\s\S]*?)```/)
+  if (fence) {
+    try {
+      const json = JSON.parse(fence[1]) as {
+        summary?: unknown
+        comments?: unknown
+        resolve?: unknown
+        update?: unknown
+      }
+      const parsed = parseReviewComments(text.replace(fence[0], "").trim())
+      return {
+        summary: typeof json.summary === "string" ? json.summary : parsed.summary,
+        comments: Array.isArray(json.comments)
+          ? json.comments.flatMap((comment) => {
+              const next = asReviewComment(comment)
+              return next ? [next] : []
+            })
+          : parsed.comments,
+        resolve: Array.isArray(json.resolve) ? json.resolve.filter((id): id is string => typeof id === "string") : [],
+        update: Array.isArray(json.update)
+          ? json.update.flatMap((item) => {
+              const next = asReviewUpdate(item)
+              return next ? [next] : []
+            })
+          : [],
+      }
+    } catch {}
+  }
+
+  const parsed = parseReviewComments(text)
+  return {
+    ...parsed,
+    resolve: [...text.matchAll(/^RESOLVE\s+(\S+)\s*$/gm)].map((match) => match[1]),
+    update: [],
+  }
+}
+
 export function parseReviewComments(text: string): ParsedReview {
   const matches = [...text.matchAll(REVIEW_COMMENT_RE)]
   if (matches.length === 0) return { summary: text.trim(), comments: [] }

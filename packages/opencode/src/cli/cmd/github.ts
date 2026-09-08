@@ -2,7 +2,13 @@ import { Effect } from "effect"
 import { cmd } from "./cmd"
 import { effectCmd } from "../effect-cmd"
 
-export { extractResponseText, formatPromptTooLargeError, parseGitHubRemote, parseReviewComments } from "./github.shared"
+export {
+  extractResponseText,
+  formatPromptTooLargeError,
+  parseGitHubRemote,
+  parseReviewActions,
+  parseReviewComments,
+} from "./github.shared"
 
 export const GithubInstallCommand = effectCmd({
   command: "install",

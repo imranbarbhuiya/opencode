@@ -1,6 +1,11 @@
 import { test, expect, describe } from "bun:test"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
-import { extractResponseText, formatPromptTooLargeError, parseReviewComments } from "../../src/cli/cmd/github"
+import {
+  extractResponseText,
+  formatPromptTooLargeError,
+  parseReviewActions,
+  parseReviewComments,
+} from "../../src/cli/cmd/github"
 import type { MessageV2 } from "../../src/session/message-v2"
 import { SessionID, MessageID, PartID } from "../../src/session/schema"
 
@@ -239,7 +244,44 @@ value?.ok
         line: 3,
         body: `**Low** \`src/b.ts:3\`
 
-Unused import.`,
+        Unused import.`,
+      },
+    ])
+  })
+})
+
+describe("parseReviewActions", () => {
+  test("reads resolve ids and new comments from a review fence", () => {
+    const actions = parseReviewActions(`Done.
+
+\`\`\`opencode-review
+{"summary":"Left one open.","resolve":["PRRT_1"],"update":[{"databaseId":9,"body":"**Low** \`a.ts:1\`\\nUpdated."}],"comments":[{"path":"b.ts","line":4,"body":"**Medium** \`b.ts:4\`\\nNew."}]}
+\`\`\``)
+
+    expect(actions).toEqual({
+      summary: "Left one open.",
+      resolve: ["PRRT_1"],
+      update: [{ databaseId: 9, body: "**Low** `a.ts:1`\nUpdated." }],
+      comments: [{ path: "b.ts", line: 4, body: "**Medium** `b.ts:4`\nNew." }],
+    })
+  })
+
+  test("falls back to markdown findings and RESOLVE lines", () => {
+    const actions = parseReviewActions(`RESOLVE PRRT_2
+
+**Low** \`c.ts:8\`
+
+Nit.`)
+
+    expect(actions.resolve).toEqual(["PRRT_2"])
+    expect(actions.update).toEqual([])
+    expect(actions.comments).toEqual([
+      {
+        path: "c.ts",
+        line: 8,
+        body: `**Low** \`c.ts:8\`
+
+Nit.`,
       },
     ])
   })
