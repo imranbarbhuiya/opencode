@@ -13,6 +13,7 @@ OpenCode integrates with your GitHub workflow. Mention `/opencode` or `/oc` in y
 - **Fix and implement**: Ask OpenCode to fix an issue or implement a feature. And it will work in a new branch and submits a PR with all the changes.
 - **Review inline**: On pull requests, OpenCode posts findings as a GitHub review with line comments and optional `suggestion` blocks, not only a conversation comment. On later runs it loads its own threads, resolves fixed ones, updates stale comments, and skips duplicates.
 - **Secure**: OpenCode runs inside your GitHub's runners.
+- **OpenCode 2**: The GitHub Action installs `@opencode-ai/cli` and runs `opencode2 github run`.
 
 ---
 
@@ -21,10 +22,10 @@ OpenCode integrates with your GitHub workflow. Mention `/opencode` or `/oc` in y
 Run the following command in a project that is in a GitHub repo:
 
 ```bash
-opencode github install
+opencode2 github install
 ```
 
-This will walk you through installing the GitHub app, creating the workflow, and setting up secrets.
+This will walk you through installing the GitHub app, creating the workflow, and setting up secrets. `opencode github install` still works on the 1.x CLI.
 
 ---
 
